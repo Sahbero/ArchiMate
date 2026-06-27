@@ -1,0 +1,817 @@
+import React, { useState, useEffect } from 'react';
+import { 
+  Home, 
+  FolderOpen, 
+  Calculator, 
+  Settings, 
+  Plus, 
+  Search, 
+  ChevronLeft,
+  Edit2,
+  Trash2,
+  Save,
+  X,
+  Palette,
+  StickyNote,
+  Link as LinkIcon,
+  Ruler,
+  CheckSquare,
+  Users,
+  Share2,
+  Package
+} from 'lucide-react';
+
+// --- ANA UYGULAMA BİLEŞENİ ---
+export default function App() {
+  // Uygulama sekmeleri: 'dashboard', 'projects', 'tools', 'settings'
+  const [activeTab, setActiveTab] = useState('dashboard');
+  
+  // Seçili proje (Detay görünümü için)
+  const [selectedProject, setSelectedProject] = useState(null);
+
+  // Veritabanı State'i (LocalStorage ile senkronize edilecek)
+  const [projects, setProjects] = useState(() => {
+    const saved = localStorage.getItem('archiMate_projects');
+    if (saved) return JSON.parse(saved);
+    return [
+      {
+        id: 1,
+        title: "Kadıköy Merkez Ofis",
+        client: "Ahmet Yılmaz",
+        status: "Devam Ediyor",
+        date: "2026-06-20",
+        notes: [
+          { id: 1, text: "Giriş lobisi için ahşap panel bakılacak.", date: "2026-06-21" },
+          { id: 2, text: "Müşteri toplantısı Cuma saat 14:00'te.", date: "2026-06-22" }
+        ],
+        materials: [
+          { id: 1, type: "Zemin", name: "60x120 Mat Seramik", brand: "Vitra", area: "Lobi" }
+        ],
+        links: [],
+        checklist: [
+          { id: 1, text: "Belediye ruhsat başvurusu yapılacak.", isDone: false },
+          { id: 2, text: "Müşteriden avans alınacak.", isDone: true }
+        ],
+        collaborators: [
+          { id: 1, email: "mehmet.mimar@ofis.com", role: "Editör" }
+        ]
+      }
+    ];
+  });
+
+  // Projeler değiştiğinde LocalStorage'a kaydet
+  useEffect(() => {
+    localStorage.setItem('archiMate_projects', JSON.stringify(projects));
+  }, [projects]);
+
+  // Ana Ekran Render Yardımcısı
+  const renderContent = () => {
+    if (selectedProject) {
+      return (
+        <ProjectDetail 
+          project={projects.find(p => p.id === selectedProject)}
+          onBack={() => setSelectedProject(null)}
+          updateProject={(updatedProject) => {
+            setProjects(projects.map(p => p.id === updatedProject.id ? updatedProject : p));
+          }}
+        />
+      );
+    }
+
+    switch (activeTab) {
+      case 'dashboard':
+        return <Dashboard projects={projects} onOpenProject={setSelectedProject} />;
+      case 'projects':
+        return <ProjectList projects={projects} setProjects={setProjects} onOpenProject={setSelectedProject} />;
+      case 'tools':
+        return <Tools />;
+      default:
+        return <Dashboard projects={projects} onOpenProject={setSelectedProject} />;
+    }
+  };
+
+  return (
+    <div className="flex flex-col h-screen bg-slate-50 text-slate-800 font-sans sm:max-w-md sm:mx-auto sm:border-x sm:border-slate-200 sm:shadow-2xl overflow-hidden relative">
+      
+      {/* Üst Başlık (Eğer proje detayında değilsek) */}
+      {!selectedProject && (
+        <header className="bg-white px-6 py-4 border-b border-slate-200 shadow-sm flex items-center justify-between sticky top-0 z-10">
+          <div>
+            <h1 className="text-xl font-bold text-slate-900 tracking-tight">ArchiMate</h1>
+            <p className="text-xs text-slate-500">Mimar Asistanı</p>
+          </div>
+          <div className="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-600 font-bold border border-indigo-200">
+            AM
+          </div>
+        </header>
+      )}
+
+      {/* Dinamik İçerik Alanı */}
+      <main className="flex-1 overflow-y-auto pb-24 scroll-smooth">
+        {renderContent()}
+      </main>
+
+      {/* Alt Navigasyon (Bottom Navigation) - Sadece ana sayfalarda görünür */}
+      {!selectedProject && (
+        <nav className="absolute bottom-0 w-full bg-white border-t border-slate-200 px-6 py-3 flex justify-between items-center shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] z-20">
+          <NavItem icon={<Home size={24} />} label="Özet" isActive={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} />
+          <NavItem icon={<FolderOpen size={24} />} label="Projeler" isActive={activeTab === 'projects'} onClick={() => setActiveTab('projects')} />
+          <NavItem icon={<Calculator size={24} />} label="Araçlar" isActive={activeTab === 'tools'} onClick={() => setActiveTab('tools')} />
+        </nav>
+      )}
+    </div>
+  );
+}
+
+// --- ALT BİLEŞENLER ---
+
+// 1. Alt Navigasyon Butonu
+function NavItem({ icon, label, isActive, onClick }) {
+  return (
+    <button 
+      onClick={onClick} 
+      className={`flex flex-col items-center justify-center w-16 transition-colors ${isActive ? 'text-indigo-600' : 'text-slate-400 hover:text-slate-600'}`}
+    >
+      <div className={`mb-1 ${isActive ? 'scale-110 transition-transform' : ''}`}>{icon}</div>
+      <span className="text-[10px] font-medium">{label}</span>
+    </button>
+  );
+}
+
+// 2. Dashboard (Ana Ekran)
+function Dashboard({ projects, onOpenProject }) {
+  const activeProjects = projects.filter(p => p.status === 'Devam Ediyor');
+  const totalNotes = projects.reduce((acc, p) => acc + (p.notes?.length || 0), 0);
+
+  return (
+    <div className="p-6 space-y-6 animate-in fade-in duration-300">
+      {/* İstatistikler */}
+      <div className="grid grid-cols-2 gap-4">
+        <div className="bg-gradient-to-br from-indigo-500 to-indigo-600 p-4 rounded-2xl text-white shadow-md">
+          <div className="flex items-center space-x-2 opacity-80 mb-2">
+            <FolderOpen size={18} />
+            <span className="text-sm font-medium">Aktif Proje</span>
+          </div>
+          <p className="text-3xl font-bold">{activeProjects.length}</p>
+        </div>
+        <div className="bg-white border border-slate-200 p-4 rounded-2xl shadow-sm">
+          <div className="flex items-center space-x-2 text-slate-500 mb-2">
+            <StickyNote size={18} />
+            <span className="text-sm font-medium">Toplam Not</span>
+          </div>
+          <p className="text-3xl font-bold text-slate-800">{totalNotes}</p>
+        </div>
+      </div>
+
+      {/* Son Projeler */}
+      <div>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-bold text-slate-800">Son Projeler</h2>
+        </div>
+        <div className="space-y-3">
+          {projects.slice(0, 3).map(project => (
+            <div 
+              key={project.id} 
+              onClick={() => onOpenProject(project.id)}
+              className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow cursor-pointer flex items-center justify-between"
+            >
+              <div>
+                <h3 className="font-semibold text-slate-800">{project.title}</h3>
+                <p className="text-sm text-slate-500">{project.client}</p>
+              </div>
+              <span className={`text-xs px-2 py-1 rounded-full font-medium ${
+                project.status === 'Devam Ediyor' ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-600'
+              }`}>
+                {project.status}
+              </span>
+            </div>
+          ))}
+          {projects.length === 0 && (
+            <p className="text-center text-slate-400 py-4 text-sm">Henüz proje eklenmemiş.</p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// 3. Proje Listesi ve Ekleme Ekranı
+function ProjectList({ projects, setProjects, onOpenProject }) {
+  const [searchTerm, setSearchTerm] = useState('');
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [newProject, setNewProject] = useState({ title: '', client: '' });
+
+  const filteredProjects = projects.filter(p => 
+    p.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    p.client.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const handleAddProject = (e) => {
+    e.preventDefault();
+    if (!newProject.title) return;
+    
+    const project = {
+      id: Date.now(),
+      title: newProject.title,
+      client: newProject.client,
+      status: "Devam Ediyor",
+      date: new Date().toISOString().split('T')[0],
+      notes: [],
+      materials: [],
+      links: [],
+      checklist: [],
+      collaborators: []
+    };
+    
+    setProjects([project, ...projects]);
+    setNewProject({ title: '', client: '' });
+    setShowAddModal(false);
+  };
+
+  return (
+    <div className="p-6 h-full flex flex-col">
+      {/* Arama */}
+      <div className="relative mb-6">
+        <Search className="absolute left-3 top-3 text-slate-400" size={20} />
+        <input 
+          type="text" 
+          placeholder="Proje veya müşteri ara..." 
+          className="w-full bg-white border border-slate-200 rounded-xl py-3 pl-10 pr-4 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent shadow-sm"
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+        />
+      </div>
+
+      {/* Proje Listesi */}
+      <div className="space-y-3 flex-1 overflow-y-auto pb-4">
+        {filteredProjects.map(project => (
+          <div 
+            key={project.id} 
+            onClick={() => onOpenProject(project.id)}
+            className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm cursor-pointer hover:border-indigo-300 transition-colors"
+          >
+            <div className="flex justify-between items-start mb-2">
+              <h3 className="font-bold text-slate-800">{project.title}</h3>
+              <span className={`text-[10px] px-2 py-1 rounded-full uppercase tracking-wider font-bold ${
+                project.status === 'Devam Ediyor' ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-600'
+              }`}>
+                {project.status}
+              </span>
+            </div>
+            <div className="flex items-center text-sm text-slate-500 space-x-4">
+              <span className="flex items-center"><FolderOpen size={14} className="mr-1"/> {project.client || 'Müşteri Yok'}</span>
+              <span className="flex items-center"><StickyNote size={14} className="mr-1"/> {project.notes?.length || 0} Not</span>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Yeni Proje Ekle Butonu */}
+      <button 
+        onClick={() => setShowAddModal(true)}
+        className="absolute bottom-24 right-6 w-14 h-14 bg-indigo-600 text-white rounded-full flex items-center justify-center shadow-lg hover:bg-indigo-700 transition-colors z-30"
+      >
+        <Plus size={28} />
+      </button>
+
+      {/* Ekleme Modalı */}
+      {showAddModal && (
+        <div className="absolute inset-0 bg-slate-900/40 z-40 flex items-end sm:items-center justify-center animate-in fade-in">
+          <div className="bg-white w-full sm:w-11/12 rounded-t-3xl sm:rounded-3xl p-6 shadow-2xl animate-in slide-in-from-bottom-10">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-xl font-bold">Yeni Proje Oluştur</h3>
+              <button onClick={() => setShowAddModal(false)} className="p-2 bg-slate-100 rounded-full text-slate-500"><X size={20}/></button>
+            </div>
+            <form onSubmit={handleAddProject}>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Proje Adı *</label>
+                  <input required type="text" value={newProject.title} onChange={e => setNewProject({...newProject, title: e.target.value})} className="w-full border border-slate-300 rounded-lg p-3 focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="Örn: Bebek Köşkü Restorasyon" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Müşteri Adı</label>
+                  <input type="text" value={newProject.client} onChange={e => setNewProject({...newProject, client: e.target.value})} className="w-full border border-slate-300 rounded-lg p-3 focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="Örn: Ayşe Hanım" />
+                </div>
+                <button type="submit" className="w-full bg-indigo-600 text-white font-bold rounded-xl p-4 mt-4 hover:bg-indigo-700">Projeyi Kaydet</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// 4. Proje Detay Ekranı (Notlar, Malzemeler vb.)
+function ProjectDetail({ project, onBack, updateProject }) {
+  const [activeTab, setActiveTab] = useState('notes'); // notes, materials, links, checklist, team
+
+  return (
+    <div className="min-h-screen bg-slate-50 flex flex-col animate-in slide-in-from-right-8 duration-300">
+      {/* Detay Üst Başlık (Header) */}
+      <header className="bg-indigo-600 text-white px-4 py-4 pt-6 sticky top-0 z-20 shadow-md">
+        <div className="flex items-center space-x-3">
+          <button onClick={onBack} className="p-2 hover:bg-white/20 rounded-full transition-colors">
+            <ChevronLeft size={24} />
+          </button>
+          <div className="flex-1 overflow-hidden">
+            <h1 className="text-lg font-bold truncate">{project.title}</h1>
+            <p className="text-indigo-200 text-sm truncate">{project.client}</p>
+          </div>
+        </div>
+        
+        {/* Detay Sekmeleri (Yatay Kaydırılabilir) */}
+        <div className="flex mt-6 bg-indigo-700/50 p-1 rounded-xl overflow-x-auto hide-scrollbar space-x-1">
+          <DetailTab label="Notlar" icon={<StickyNote size={16}/>} isActive={activeTab === 'notes'} onClick={() => setActiveTab('notes')} />
+          <DetailTab label="Malzemeler" icon={<Palette size={16}/>} isActive={activeTab === 'materials'} onClick={() => setActiveTab('materials')} />
+          <DetailTab label="İşler" icon={<CheckSquare size={16}/>} isActive={activeTab === 'checklist'} onClick={() => setActiveTab('checklist')} />
+          <DetailTab label="Linkler" icon={<LinkIcon size={16}/>} isActive={activeTab === 'links'} onClick={() => setActiveTab('links')} />
+          <DetailTab label="Ekip" icon={<Users size={16}/>} isActive={activeTab === 'team'} onClick={() => setActiveTab('team')} />
+        </div>
+      </header>
+
+      {/* İçerik */}
+      <div className="flex-1 p-4">
+        {activeTab === 'notes' && <ProjectNotes project={project} updateProject={updateProject} />}
+        {activeTab === 'materials' && <ProjectMaterials project={project} updateProject={updateProject} />}
+        {activeTab === 'checklist' && <ProjectChecklist project={project} updateProject={updateProject} />}
+        {activeTab === 'links' && <ProjectLinks project={project} updateProject={updateProject} />}
+        {activeTab === 'team' && <ProjectTeam project={project} updateProject={updateProject} />}
+      </div>
+    </div>
+  );
+}
+
+function DetailTab({ label, icon, isActive, onClick }) {
+  return (
+    <button 
+      onClick={onClick}
+      className={`flex flex-col items-center justify-center min-w-[70px] space-y-1 py-2 text-[11px] font-medium rounded-lg transition-all flex-shrink-0 ${
+        isActive ? 'bg-white text-indigo-700 shadow-sm' : 'text-indigo-100 hover:text-white hover:bg-white/10'
+      }`}
+    >
+      {icon}
+      <span>{label}</span>
+    </button>
+  );
+}
+
+// 4.1. Proje İçi Notlar Modülü
+function ProjectNotes({ project, updateProject }) {
+  const [newNote, setNewNote] = useState('');
+  const [editingId, setEditingId] = useState(null);
+  const [editNoteText, setEditNoteText] = useState('');
+
+  const addNote = () => {
+    if (!newNote.trim()) return;
+    const updated = {
+      ...project,
+      notes: [{ id: Date.now(), text: newNote, date: new Date().toLocaleDateString('tr-TR') }, ...(project.notes || [])]
+    };
+    updateProject(updated);
+    setNewNote('');
+  };
+
+  const deleteNote = (id) => {
+    const updated = { ...project, notes: project.notes.filter(n => n.id !== id) };
+    updateProject(updated);
+  };
+
+  const startEdit = (note) => {
+    setEditingId(note.id);
+    setEditNoteText(note.text);
+  };
+
+  const saveEdit = (id) => {
+    const updatedNotes = project.notes.map(n => n.id === id ? { ...n, text: editNoteText } : n);
+    updateProject({ ...project, notes: updatedNotes });
+    setEditingId(null);
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* Hızlı Not Ekleme */}
+      <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-200">
+        <textarea 
+          placeholder="Bu proje için yeni bir not yazın..." 
+          className="w-full bg-slate-50 border-none rounded-xl p-3 text-sm focus:ring-0 outline-none resize-none h-20"
+          value={newNote}
+          onChange={(e) => setNewNote(e.target.value)}
+        />
+        <div className="flex justify-end mt-2">
+          <button onClick={addNote} className="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700">Not Ekle</button>
+        </div>
+      </div>
+
+      {/* Not Listesi */}
+      <div className="space-y-3">
+        {project.notes?.map(note => (
+          <div key={note.id} className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex flex-col group relative">
+            <span className="text-[10px] text-slate-400 mb-2 font-medium">{note.date}</span>
+            
+            {editingId === note.id ? (
+              <div className="flex flex-col">
+                <textarea 
+                  className="w-full bg-slate-50 border border-slate-200 rounded p-2 text-sm text-slate-700 mb-2 outline-none"
+                  value={editNoteText}
+                  onChange={(e) => setEditNoteText(e.target.value)}
+                />
+                <div className="flex justify-end space-x-2">
+                  <button onClick={() => setEditingId(null)} className="text-slate-500 text-xs px-2 py-1">İptal</button>
+                  <button onClick={() => saveEdit(note.id)} className="bg-indigo-100 text-indigo-700 text-xs px-3 py-1 rounded font-bold">Kaydet</button>
+                </div>
+              </div>
+            ) : (
+              <p className="text-slate-700 text-sm whitespace-pre-wrap leading-relaxed pr-10">{note.text}</p>
+            )}
+
+            {/* Aksiyon Butonları */}
+            {editingId !== note.id && (
+              <div className="absolute top-4 right-4 flex space-x-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                <button onClick={() => startEdit(note)} className="p-1.5 text-slate-400 hover:text-indigo-600 bg-slate-50 rounded-md"><Edit2 size={14} /></button>
+                <button onClick={() => deleteNote(note.id)} className="p-1.5 text-slate-400 hover:text-red-500 bg-slate-50 rounded-md"><Trash2 size={14} /></button>
+              </div>
+            )}
+          </div>
+        ))}
+        {(!project.notes || project.notes.length === 0) && (
+          <div className="text-center py-10 text-slate-400">
+            <StickyNote size={32} className="mx-auto mb-2 opacity-50" />
+            <p className="text-sm">Henüz not eklenmemiş.</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// 4.2. Malzeme Seçim Panosu
+function ProjectMaterials({ project, updateProject }) {
+  const [showAdd, setShowAdd] = useState(false);
+  const [newMat, setNewMat] = useState({ type: 'Zemin', name: '', brand: '', area: '' });
+
+  const addMaterial = (e) => {
+    e.preventDefault();
+    const updated = {
+      ...project,
+      materials: [{ id: Date.now(), ...newMat }, ...(project.materials || [])]
+    };
+    updateProject(updated);
+    setShowAdd(false);
+    setNewMat({ type: 'Zemin', name: '', brand: '', area: '' });
+  };
+
+  const deleteMaterial = (id) => {
+    updateProject({ ...project, materials: project.materials.filter(m => m.id !== id) });
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex justify-between items-center mb-2">
+        <h3 className="font-semibold text-slate-700 text-sm">Seçili Malzemeler</h3>
+        <button onClick={() => setShowAdd(!showAdd)} className="text-indigo-600 text-sm font-bold flex items-center">
+          {showAdd ? <X size={16} className="mr-1"/> : <Plus size={16} className="mr-1"/>}
+          {showAdd ? 'İptal' : 'Yeni Ekle'}
+        </button>
+      </div>
+
+      {showAdd && (
+        <form onSubmit={addMaterial} className="bg-white p-4 rounded-xl border border-indigo-100 shadow-sm space-y-3 mb-4 animate-in fade-in">
+          <select value={newMat.type} onChange={e => setNewMat({...newMat, type: e.target.value})} className="w-full p-2 border border-slate-200 rounded-lg text-sm outline-none">
+            <option>Zemin</option>
+            <option>Duvar</option>
+            <option>Mobilya</option>
+            <option>Aydınlatma</option>
+            <option>Aksesuar</option>
+          </select>
+          <input required type="text" placeholder="Malzeme Adı/Kodu (Örn: Mat Beyaz Mermer)" className="w-full p-2 border border-slate-200 rounded-lg text-sm outline-none" value={newMat.name} onChange={e => setNewMat({...newMat, name: e.target.value})} />
+          <div className="flex space-x-2">
+            <input type="text" placeholder="Marka" className="w-1/2 p-2 border border-slate-200 rounded-lg text-sm outline-none" value={newMat.brand} onChange={e => setNewMat({...newMat, brand: e.target.value})} />
+            <input type="text" placeholder="Kullanım Alanı (Örn: Mutfak)" className="w-1/2 p-2 border border-slate-200 rounded-lg text-sm outline-none" value={newMat.area} onChange={e => setNewMat({...newMat, area: e.target.value})} />
+          </div>
+          <button type="submit" className="w-full bg-slate-900 text-white rounded-lg py-2 text-sm font-bold">Panoya Ekle</button>
+        </form>
+      )}
+
+      <div className="grid grid-cols-1 gap-3">
+        {project.materials?.map(mat => (
+          <div key={mat.id} className="bg-white p-4 rounded-xl border-l-4 border-l-indigo-500 shadow-sm flex justify-between items-start">
+            <div>
+              <span className="text-[10px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded font-bold uppercase">{mat.type}</span>
+              <h4 className="font-bold text-slate-800 mt-1">{mat.name}</h4>
+              <div className="flex text-xs text-slate-500 mt-2 space-x-3">
+                {mat.brand && <span><span className="font-medium text-slate-400">Marka:</span> {mat.brand}</span>}
+                {mat.area && <span><span className="font-medium text-slate-400">Alan:</span> {mat.area}</span>}
+              </div>
+            </div>
+            <button onClick={() => deleteMaterial(mat.id)} className="text-slate-300 hover:text-red-500 p-1"><Trash2 size={16}/></button>
+          </div>
+        ))}
+        {(!project.materials || project.materials.length === 0) && !showAdd && (
+          <div className="text-center py-10 text-slate-400">
+            <Palette size={32} className="mx-auto mb-2 opacity-50" />
+            <p className="text-sm">Panoda malzeme bulunmuyor.</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// 4.3 İlham & Linkler
+function ProjectLinks({ project, updateProject }) {
+  const [link, setLink] = useState('');
+  const [title, setTitle] = useState('');
+
+  const addLink = (e) => {
+    e.preventDefault();
+    if(!link) return;
+    const updated = {
+      ...project,
+      links: [{ id: Date.now(), url: link, title: title || link }, ...(project.links || [])]
+    };
+    updateProject(updated);
+    setLink(''); setTitle('');
+  };
+
+  const deleteLink = (id) => {
+    updateProject({ ...project, links: project.links.filter(l => l.id !== id) });
+  };
+
+  return (
+    <div className="space-y-4">
+      <form onSubmit={addLink} className="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+        <h3 className="font-semibold text-sm mb-3 text-slate-700">İlham veya Ürün Linki Ekle</h3>
+        <input type="url" placeholder="https://..." required className="w-full p-2 border border-slate-200 rounded-lg text-sm mb-2 outline-none" value={link} onChange={e=>setLink(e.target.value)} />
+        <input type="text" placeholder="Kısa Açıklama (İsteğe bağlı)" className="w-full p-2 border border-slate-200 rounded-lg text-sm mb-3 outline-none" value={title} onChange={e=>setTitle(e.target.value)} />
+        <button type="submit" className="bg-indigo-50 text-indigo-700 font-bold w-full py-2 rounded-lg text-sm">Kaydet</button>
+      </form>
+
+      <div className="space-y-2">
+        {project.links?.map(l => (
+          <div key={l.id} className="bg-white p-3 rounded-lg flex items-center justify-between border border-slate-100 shadow-sm">
+            <a href={l.url} target="_blank" rel="noopener noreferrer" className="flex items-center text-indigo-600 hover:underline flex-1 truncate mr-3">
+              <LinkIcon size={16} className="mr-2 flex-shrink-0" />
+              <span className="text-sm truncate font-medium">{l.title}</span>
+            </a>
+            <button onClick={() => deleteLink(l.id)} className="text-slate-300 hover:text-red-500"><Trash2 size={16}/></button>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// 4.4 Checklist (Yapılacaklar) Modülü
+function ProjectChecklist({ project, updateProject }) {
+  const [task, setTask] = useState('');
+
+  const addTask = (e) => {
+    e.preventDefault();
+    if (!task.trim()) return;
+    const updated = {
+      ...project,
+      checklist: [{ id: Date.now(), text: task, isDone: false }, ...(project.checklist || [])]
+    };
+    updateProject(updated);
+    setTask('');
+  };
+
+  const toggleTask = (id) => {
+    const updatedTasks = project.checklist.map(t => t.id === id ? { ...t, isDone: !t.isDone } : t);
+    updateProject({ ...project, checklist: updatedTasks });
+  };
+
+  const deleteTask = (id) => {
+    updateProject({ ...project, checklist: project.checklist.filter(t => t.id !== id) });
+  };
+
+  // İlerleme yüzdesi hesaplama
+  const total = project.checklist?.length || 0;
+  const completed = project.checklist?.filter(t => t.isDone).length || 0;
+  const progress = total === 0 ? 0 : Math.round((completed / total) * 100);
+
+  return (
+    <div className="space-y-4">
+      {/* İlerleme Çubuğu */}
+      <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+        <div className="flex justify-between text-sm mb-2 text-slate-600 font-medium">
+          <span>İlerleme Durumu</span>
+          <span>%{progress}</span>
+        </div>
+        <div className="w-full bg-slate-100 rounded-full h-2">
+          <div className="bg-indigo-500 h-2 rounded-full transition-all duration-500" style={{ width: `${progress}%` }}></div>
+        </div>
+      </div>
+
+      {/* Görev Ekleme */}
+      <form onSubmit={addTask} className="flex space-x-2">
+        <input type="text" placeholder="Yeni görev ekle..." className="flex-1 p-3 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm" value={task} onChange={e => setTask(e.target.value)} />
+        <button type="submit" className="bg-indigo-600 text-white px-4 rounded-xl hover:bg-indigo-700 transition shadow-sm"><Plus size={20}/></button>
+      </form>
+
+      {/* Görev Listesi */}
+      <div className="space-y-2">
+        {project.checklist?.map(t => (
+          <div key={t.id} className={`bg-white p-3 rounded-xl border flex items-center justify-between shadow-sm transition-all ${t.isDone ? 'border-indigo-100 bg-indigo-50/30' : 'border-slate-100'}`}>
+            <div className="flex items-center space-x-3 flex-1 cursor-pointer" onClick={() => toggleTask(t.id)}>
+              <div className={`w-5 h-5 rounded flex items-center justify-center border transition-colors ${t.isDone ? 'bg-indigo-600 border-indigo-600' : 'border-slate-300'}`}>
+                {t.isDone && <CheckSquare size={14} className="text-white" />}
+              </div>
+              <span className={`text-sm flex-1 ${t.isDone ? 'text-slate-400 line-through' : 'text-slate-700'}`}>{t.text}</span>
+            </div>
+            <button onClick={() => deleteTask(t.id)} className="text-slate-300 hover:text-red-500 p-2"><Trash2 size={16}/></button>
+          </div>
+        ))}
+        {(!project.checklist || project.checklist.length === 0) && (
+          <div className="text-center py-8 text-slate-400">
+            <CheckSquare size={32} className="mx-auto mb-2 opacity-30" />
+            <p className="text-sm">Henüz bir görev eklenmemiş.</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// 4.5 Ortak Çalışma Alanı (Team / İşbirliği)
+function ProjectTeam({ project, updateProject }) {
+  const [email, setEmail] = useState('');
+
+  const inviteUser = (e) => {
+    e.preventDefault();
+    if (!email.trim() || !email.includes('@')) return;
+    const updated = {
+      ...project,
+      collaborators: [...(project.collaborators || []), { id: Date.now(), email, role: 'Editör' }]
+    };
+    updateProject(updated);
+    setEmail('');
+  };
+
+  const removeUser = (id) => {
+    updateProject({ ...project, collaborators: project.collaborators.filter(c => c.id !== id) });
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Bilgi Kartı */}
+      <div className="bg-indigo-50 border border-indigo-100 p-4 rounded-xl flex items-start space-x-3">
+        <Share2 size={24} className="text-indigo-600 mt-1 flex-shrink-0" />
+        <div>
+          <h3 className="text-sm font-bold text-indigo-900 mb-1">Projeyi Paylaş (Beta)</h3>
+          <p className="text-xs text-indigo-700 leading-relaxed">Ekip arkadaşlarınızı veya müşterinizi davet ederek projenin notlarını ve ilerlemesini birlikte yönetebilirsiniz.</p>
+        </div>
+      </div>
+
+      {/* Davet Etme Formu */}
+      <form onSubmit={inviteUser} className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-3">
+        <h4 className="text-sm font-bold text-slate-700">Davet Gönder</h4>
+        <div className="flex space-x-2">
+          <input type="email" placeholder="E-posta adresi..." required className="flex-1 p-2 border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500 bg-slate-50" value={email} onChange={e => setEmail(e.target.value)} />
+          <button type="submit" className="bg-slate-900 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-slate-800">Davet Et</button>
+        </div>
+      </form>
+
+      {/* Erişimi Olan Kişiler */}
+      <div>
+        <h4 className="text-sm font-bold text-slate-700 mb-3">Erişimi Olanlar</h4>
+        <div className="space-y-2">
+          {/* Proje Sahibi (Varsayılan) */}
+          <div className="bg-white p-3 rounded-lg border border-slate-100 flex items-center justify-between shadow-sm">
+            <div className="flex items-center space-x-3">
+              <div className="w-8 h-8 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold text-xs">SEN</div>
+              <div>
+                <p className="text-sm font-medium text-slate-800">Sen</p>
+                <p className="text-[10px] text-slate-500 uppercase">Proje Yöneticisi</p>
+              </div>
+            </div>
+          </div>
+          
+          {/* Ortaklar */}
+          {project.collaborators?.map(user => (
+            <div key={user.id} className="bg-white p-3 rounded-lg border border-slate-100 flex items-center justify-between shadow-sm">
+              <div className="flex items-center space-x-3">
+                <div className="w-8 h-8 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center font-bold text-xs">
+                  {user.email.charAt(0).toUpperCase()}
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-slate-800 truncate max-w-[150px]">{user.email}</p>
+                  <p className="text-[10px] text-slate-500 uppercase">{user.role}</p>
+                </div>
+              </div>
+              <button onClick={() => removeUser(user.id)} className="text-slate-400 hover:text-red-500 text-xs font-medium px-2 py-1 bg-slate-50 rounded">Kaldır</button>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// 5. Mimari Araçlar Bölümü
+function Tools() {
+  // Metraj State
+  const [width, setWidth] = useState('');
+  const [length, setLength] = useState('');
+  const area = (parseFloat(width || 0) * parseFloat(length || 0)).toFixed(2);
+
+  // Malzeme Paket Hesaplayıcı State
+  const [matArea, setMatArea] = useState('');
+  const [wasteOption, setWasteOption] = useState('10'); // '5', '10', '15', 'custom'
+  const [customWaste, setCustomWaste] = useState('');
+  const [packageSize, setPackageSize] = useState('');
+
+  // Hesaplama Mantığı
+  const actualWaste = wasteOption === 'custom' ? parseFloat(customWaste || 0) : parseFloat(wasteOption || 0);
+  const grossArea = parseFloat(matArea || 0) * (1 + (actualWaste / 100));
+  const requiredPackages = packageSize > 0 ? Math.ceil(grossArea / parseFloat(packageSize)) : 0;
+
+  return (
+    <div className="p-6 h-full animate-in fade-in space-y-6">
+      <h2 className="text-xl font-bold text-slate-800 flex items-center"><Calculator className="mr-2"/> Pratik Araçlar</h2>
+      
+      {/* Metraj Hesaplayıcı */}
+      <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
+        <h3 className="font-bold text-slate-700 mb-4 flex items-center"><Ruler size={18} className="mr-2 text-indigo-500"/> Hızlı Metrekare (m²)</h3>
+        <div className="flex items-center space-x-4">
+          <div>
+            <label className="text-xs text-slate-500 font-medium">En (metre)</label>
+            <input type="number" step="0.01" value={width} onChange={e=>setWidth(e.target.value)} className="w-full bg-slate-50 border-b-2 border-slate-200 p-2 text-center text-lg focus:outline-none focus:border-indigo-500 font-mono" placeholder="0.00" />
+          </div>
+          <span className="text-slate-400 mt-4 text-xl">x</span>
+          <div>
+            <label className="text-xs text-slate-500 font-medium">Boy (metre)</label>
+            <input type="number" step="0.01" value={length} onChange={e=>setLength(e.target.value)} className="w-full bg-slate-50 border-b-2 border-slate-200 p-2 text-center text-lg focus:outline-none focus:border-indigo-500 font-mono" placeholder="0.00" />
+          </div>
+        </div>
+        
+        <div className="mt-6 bg-slate-900 rounded-xl p-4 flex justify-between items-center text-white">
+          <span className="text-sm text-slate-300">Toplam Alan</span>
+          <div className="flex items-end">
+            <span className="text-3xl font-bold">{area > 0 ? area : "0.00"}</span>
+            <span className="ml-1 text-sm text-slate-400 mb-1">m²</span>
+          </div>
+        </div>
+      </div>
+      
+      {/* Malzeme Paketi Hesaplayıcı */}
+      <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
+        <h3 className="font-bold text-slate-700 mb-4 flex items-center"><Package size={18} className="mr-2 text-indigo-500"/> Malzeme Paket İhtiyacı</h3>
+        
+        <div className="space-y-4">
+          <div>
+            <label className="text-xs text-slate-500 font-medium mb-1 block">Uygulanacak Net Alan (m² / mtül)</label>
+            <input type="number" value={matArea} onChange={e=>setMatArea(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-lg p-3 text-lg focus:outline-none focus:border-indigo-500" placeholder="Örn: 45.5" />
+          </div>
+
+          <div>
+            <label className="text-xs text-slate-500 font-medium mb-2 block">Fire Oranı (%)</label>
+            <div className="flex space-x-2">
+              {['5', '10', '15'].map(opt => (
+                <button 
+                  key={opt}
+                  onClick={() => setWasteOption(opt)}
+                  className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors border ${wasteOption === opt ? 'bg-indigo-100 text-indigo-700 border-indigo-200' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}
+                >
+                  %{opt}
+                </button>
+              ))}
+              <button 
+                onClick={() => setWasteOption('custom')}
+                className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors border ${wasteOption === 'custom' ? 'bg-indigo-100 text-indigo-700 border-indigo-200' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}
+              >
+                Özel
+              </button>
+            </div>
+            {wasteOption === 'custom' && (
+              <div className="mt-3 flex items-center space-x-2 bg-slate-50 p-2 rounded-lg border border-slate-200">
+                <span className="text-sm text-slate-600 font-medium">Özel Fire % :</span>
+                <input type="number" value={customWaste} onChange={e=>setCustomWaste(e.target.value)} className="w-full bg-white border border-slate-300 rounded p-1 text-center outline-none focus:border-indigo-500" placeholder="0" />
+              </div>
+            )}
+          </div>
+
+          <div>
+            <label className="text-xs text-slate-500 font-medium mb-1 block">1 Paketin İçeriği (m² / mtül)</label>
+            <input type="number" step="0.01" value={packageSize} onChange={e=>setPackageSize(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-lg p-3 text-lg focus:outline-none focus:border-indigo-500" placeholder="Örn: 1.44 (Fayans/Parke vb.)" />
+          </div>
+
+          <div className="mt-4 bg-gradient-to-r from-indigo-500 to-indigo-600 rounded-xl p-4 text-white">
+            <div className="flex justify-between items-center mb-2">
+              <span className="text-sm text-indigo-100">Brüt İhtiyaç (Fireli)</span>
+              <span className="font-medium">{grossArea.toFixed(2)} m²</span>
+            </div>
+            <div className="flex justify-between items-center border-t border-indigo-400 pt-2">
+              <span className="text-sm font-bold">Alınması Gereken</span>
+              <div className="flex items-end">
+                <span className="text-3xl font-bold">{requiredPackages}</span>
+                <span className="ml-1 text-sm text-indigo-200 mb-1">Paket</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
