@@ -1,13 +1,15 @@
+```react
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   Home, FolderOpen, Calculator, Plus, Search, ChevronLeft,
   Edit2, Trash2, X, Palette, StickyNote, Link as LinkIcon,
   Ruler, Users, Share2, Package, Image as ImageIcon,
   Calendar, Clock, Bell, BellRing, CheckCircle,
-  Archive, FileText, Download, CheckCircle2
+  Archive, FileText, Download, CheckCircle2,
+  LogOut, Mail, Lock, User
 } from 'lucide-react';
 
-// Çoklu dil desteği için dil sözlüğü
+// Çoklu dil desteği için dil sözlüğü (Giriş ekranı kelimeleri eklendi)
 const translations = {
   tr: {
     appTitle: "ArchiMate",
@@ -97,7 +99,20 @@ const translations = {
     completed: "Tamamlandı",
     attachFile: "Dosya",
     fileLimit: "Dosya çok büyük! Lütfen 500KB altı seçin.",
-    readOnlyMsg: "Bu proje tamamlandığı için salt okunur (arşiv) modundadır. Değişiklik yapılamaz."
+    readOnlyMsg: "Bu proje tamamlandığı için salt okunur (arşiv) modundadır. Değişiklik yapılamaz.",
+    // Kimlik Doğrulama Eklemeleri
+    login: "Giriş Yap",
+    register: "Kayıt Ol",
+    email: "E-posta Adresi",
+    password: "Şifre",
+    verifyCode: "Doğrulama Kodu",
+    verifyBtn: "Doğrula ve Tamamla",
+    noAccount: "Hesabınız yok mu? Kayıt Olun",
+    hasAccount: "Zaten hesabınız var mı? Giriş Yapın",
+    wrongCode: "Hatalı doğrulama kodu!",
+    codeSentMsg: "Doğrulama kodunuz e-postanıza gönderildi.",
+    logout: "Çıkış Yap",
+    authorPrefix: "Yazan: "
   },
   en: {
     appTitle: "ArchiMate",
@@ -187,7 +202,20 @@ const translations = {
     completed: "Completed",
     attachFile: "File",
     fileLimit: "File is too large! Please select under 500KB.",
-    readOnlyMsg: "This project is completed and is in read-only (archive) mode."
+    readOnlyMsg: "This project is completed and is in read-only (archive) mode.",
+    // Auth additions
+    login: "Log In",
+    register: "Register",
+    email: "Email Address",
+    password: "Password",
+    verifyCode: "Verification Code",
+    verifyBtn: "Verify & Complete",
+    noAccount: "Don't have an account? Register",
+    hasAccount: "Already have an account? Log In",
+    wrongCode: "Incorrect verification code!",
+    codeSentMsg: "Verification code sent to your email.",
+    logout: "Log Out",
+    authorPrefix: "Author: "
   }
 };
 
@@ -261,20 +289,128 @@ function ProfessionVector({ profession, className = "w-12 h-12" }) {
   }
 }
 
+// Yeni Eklenen Kimlik Doğrulama Ekranı Bileşeni
+function AuthScreen({ onLogin, t, showToast }) {
+  const [mode, setMode] = useState('login'); // 'login', 'register', 'verify'
+  const [formData, setFormData] = useState({ name: '', email: '', password: '', code: '' });
+  const [generatedCode, setGeneratedCode] = useState('');
+
+  const handleRegister = (e) => {
+    e.preventDefault();
+    if (mode === 'login') {
+      // Giriş yapma simülasyonu
+      onLogin({ email: formData.email, name: formData.email.split('@')[0] });
+    } else if (mode === 'register') {
+      // Kayıt olma simülasyonu -> E-postaya kod gönder
+      const code = Math.floor(100000 + Math.random() * 900000).toString();
+      setGeneratedCode(code);
+      setMode('verify');
+      
+      // Test edebilmeniz için kodu ekranda tost mesajı olarak gösteriyoruz
+      showToast(`${t('codeSentMsg')} TEST KODU: ${code}`);
+    }
+  };
+
+  const handleVerify = (e) => {
+    e.preventDefault();
+    if (formData.code === generatedCode) {
+      onLogin({ email: formData.email, name: formData.name });
+    } else {
+      showToast(t('wrongCode'));
+    }
+  };
+
+  return (
+    <div className="flex flex-col h-screen bg-slate-50 items-center justify-center p-6 sm:max-w-md sm:mx-auto sm:border-x sm:border-slate-200">
+      <div className="w-full bg-white p-8 rounded-3xl shadow-lg border border-slate-100 animate-in fade-in zoom-in-95 duration-300">
+        <div className="flex flex-col items-center mb-8">
+          <div className="w-16 h-16 bg-indigo-600 rounded-2xl flex items-center justify-center shadow-md mb-4">
+            <ProfessionVector profession="Mimar" className="w-10 h-10 text-white" />
+          </div>
+          <h1 className="text-2xl font-black text-slate-800 tracking-tight">{t('appTitle')}</h1>
+          <p className="text-sm text-slate-500 font-medium">{t('appSubtitle')}</p>
+        </div>
+
+        {mode === 'verify' ? (
+          <form onSubmit={handleVerify} className="space-y-4 animate-in slide-in-from-right-4">
+            <div className="text-center mb-6">
+              <p className="text-sm text-slate-600 font-medium">{formData.email} adresine gönderilen 6 haneli kodu girin.</p>
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">{t('verifyCode')}</label>
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                <input required type="text" maxLength="6" value={formData.code} onChange={e => setFormData({...formData, code: e.target.value})} className="w-full bg-slate-50 pl-10 pr-4 py-3 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all text-center tracking-[0.5em] font-bold text-lg" placeholder="••••••" />
+              </div>
+            </div>
+            <button type="submit" className="w-full bg-indigo-600 text-white font-bold py-3.5 rounded-xl mt-2 hover:bg-indigo-700 transition-colors shadow-md">
+              {t('verifyBtn')}
+            </button>
+            <button type="button" onClick={() => setMode('register')} className="w-full text-center text-sm font-semibold text-indigo-600 mt-4 hover:text-indigo-800">
+              Geri Dön
+            </button>
+          </form>
+        ) : (
+          <form onSubmit={handleRegister} className="space-y-4 animate-in fade-in">
+            {mode === 'register' && (
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">{t('fullName')}</label>
+                <div className="relative">
+                  <User className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                  <input required type="text" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="w-full bg-slate-50 pl-10 pr-4 py-3 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all text-sm" placeholder="Ahmet Yılmaz" />
+                </div>
+              </div>
+            )}
+            <div>
+              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">{t('email')}</label>
+              <div className="relative">
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                <input required type="email" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} className="w-full bg-slate-50 pl-10 pr-4 py-3 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all text-sm" placeholder="ornek@mail.com" />
+              </div>
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">{t('password')}</label>
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                <input required type="password" value={formData.password} onChange={e => setFormData({...formData, password: e.target.value})} className="w-full bg-slate-50 pl-10 pr-4 py-3 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all text-sm" placeholder="••••••••" />
+              </div>
+            </div>
+            <button type="submit" className="w-full bg-indigo-600 text-white font-bold py-3.5 rounded-xl mt-2 hover:bg-indigo-700 transition-colors shadow-md">
+              {mode === 'login' ? t('login') : t('register')}
+            </button>
+            <div className="text-center mt-6">
+              <button type="button" onClick={() => setMode(mode === 'login' ? 'register' : 'login')} className="text-sm font-semibold text-slate-500 hover:text-indigo-600 transition-colors">
+                {mode === 'login' ? t('noAccount') : t('hasAccount')}
+              </button>
+            </div>
+          </form>
+        )}
+      </div>
+    </div>
+  );
+}
+
+
 export default function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [selectedProject, setSelectedProject] = useState(null);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
-  const [toast, setToast] = useState(null); // Bildirim Sistemi
+  const [toast, setToast] = useState(null);
+
+  // Oturum (Kullanıcı) State'i
+  const [authUser, setAuthUser] = useState(() => {
+    const savedUser = localStorage.getItem('archiMate_authUser');
+    return savedUser ? JSON.parse(savedUser) : null;
+  });
 
   const showToast = (message) => {
     setToast(message);
-    setTimeout(() => setToast(null), 3000);
+    setTimeout(() => setToast(null), 4000);
   };
 
-  // Profil Bilgileri State'i (v3 ile yenilendi)
+  // Profil Bilgileri State'i
   const [profile, setProfile] = useState(() => {
-    const saved = localStorage.getItem('archiMate_profile_v3');
+    const saved = localStorage.getItem('archiMate_profile_v4');
     if (saved) return JSON.parse(saved);
     return {
       fullName: "Ahmet Mimaroğlu",
@@ -284,17 +420,12 @@ export default function App() {
     };
   });
 
-  // Veritabanı State'i (v3 - Yeni Roller, Dosya ve Arşiv Yapısı)
+  // Veritabanı State'i
   const [projects, setProjects] = useState(() => {
-    const saved = localStorage.getItem('archiMate_projects_v3');
+    const saved = localStorage.getItem('archiMate_projects_v4');
     if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch (e) {
-        return [];
-      }
+      try { return JSON.parse(saved); } catch (e) { return []; }
     }
-    // Varsayılan Örnek Proje verisi
     return [
       {
         id: 1,
@@ -307,6 +438,7 @@ export default function App() {
             id: 1, 
             text: "Giriş lobisi için ahşap panel bakılacak. Aşağıdaki linkteki modeli beğendiler.", 
             date: "21.06.2026", 
+            authorName: "Ahmet Mimaroğlu",
             image: null,
             file: null,
             link: "https://tr.pinterest.com" 
@@ -329,17 +461,6 @@ export default function App() {
         collaborators: [
           { id: 1, email: "mehmet.mimar@ofis.com", role: "Editör" }
         ]
-      },
-      {
-        id: 2,
-        title: "Beşiktaş Villa Restorasyon",
-        client: "Ayşe Hanım",
-        status: "Tamamlandı",
-        date: "2025-05-10",
-        notes: [],
-        materials: [],
-        tasks: [],
-        collaborators: []
       }
     ];
   });
@@ -347,7 +468,7 @@ export default function App() {
   // LocalStorage senkronizasyonu
   useEffect(() => {
     try {
-      localStorage.setItem('archiMate_projects_v3', JSON.stringify(projects));
+      localStorage.setItem('archiMate_projects_v4', JSON.stringify(projects));
     } catch (e) {
       if (e.name === 'QuotaExceededError') {
         showToast(t('quotaWarning'));
@@ -356,13 +477,33 @@ export default function App() {
   }, [projects]);
 
   useEffect(() => {
-    localStorage.setItem('archiMate_profile_v3', JSON.stringify(profile));
+    localStorage.setItem('archiMate_profile_v4', JSON.stringify(profile));
   }, [profile]);
+
+  useEffect(() => {
+    if (authUser) {
+      localStorage.setItem('archiMate_authUser', JSON.stringify(authUser));
+    } else {
+      localStorage.removeItem('archiMate_authUser');
+    }
+  }, [authUser]);
 
   // Çeviri Yardımcı Fonksiyonu
   const t = (key) => {
     const lang = profile.language || 'tr';
     return translations[lang]?.[key] || key;
+  };
+
+  const handleLogin = (user) => {
+    setAuthUser(user);
+    if (user.name) {
+      setProfile(prev => ({ ...prev, fullName: user.name }));
+    }
+  };
+
+  const handleLogout = () => {
+    setAuthUser(null);
+    setIsProfileOpen(false);
   };
 
   // Hatırlatıcı kontrol mekanizması
@@ -372,9 +513,8 @@ export default function App() {
       const now = new Date();
       const currentDateStr = now.toISOString().split('T')[0];
       const currentTimeStr = now.toTimeString().substring(0, 5);
-
       projects.forEach(project => {
-        if (project.status === 'Tamamlandı' || project.status === 'Completed') return; // Bitmiş projelerde alarm çalma
+        if (project.status === 'Tamamlandı' || project.status === 'Completed') return; 
         project.tasks?.forEach(task => {
           if (task.reminder && !task.isDone && task.date === currentDateStr && task.startTime === currentTimeStr) {
             if (Notification.permission === 'granted') {
@@ -389,6 +529,20 @@ export default function App() {
     }, 60000);
     return () => clearInterval(interval);
   }, [projects]);
+
+  // Kullanıcı giriş yapmamışsa, kimlik doğrulama sayfasını göster
+  if (!authUser) {
+    return (
+      <div className="relative w-full h-full">
+         {toast && (
+          <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[100] bg-slate-900 text-white px-4 py-2 rounded-full text-sm font-medium shadow-2xl animate-in slide-in-from-top-10 max-w-sm text-center">
+            {toast}
+          </div>
+        )}
+        <AuthScreen onLogin={handleLogin} t={t} showToast={showToast} />
+      </div>
+    );
+  }
 
   const renderContent = () => {
     if (selectedProject) {
@@ -405,7 +559,6 @@ export default function App() {
         />
       );
     }
-
     switch (activeTab) {
       case 'dashboard':
         return <Dashboard projects={projects} onOpenProject={setSelectedProject} t={t} />;
@@ -471,6 +624,7 @@ export default function App() {
           profile={profile} 
           setProfile={setProfile} 
           onClose={() => setIsProfileOpen(false)} 
+          onLogout={handleLogout}
           t={t}
           showToast={showToast}
         />
@@ -491,7 +645,7 @@ function NavItem({ icon, label, isActive, onClick }) {
   );
 }
 
-function ProfileModal({ profile, setProfile, onClose, t, showToast }) {
+function ProfileModal({ profile, setProfile, onClose, onLogout, t, showToast }) {
   const [nameInput, setNameInput] = useState(profile.fullName);
   const [profInput, setProfInput] = useState(profile.profession);
   const [langInput, setLangInput] = useState(profile.language);
@@ -529,9 +683,7 @@ function ProfileModal({ profile, setProfile, onClose, t, showToast }) {
         <button onClick={onClose} className="absolute top-4 right-4 p-2 text-slate-400 hover:text-slate-600 rounded-full bg-slate-100">
           <X size={20} />
         </button>
-
         <h3 className="text-xl font-bold text-slate-800 mb-6">{t('profileTitle')}</h3>
-
         <div className="flex flex-col items-center mb-6">
           <div className="w-24 h-24 rounded-full border-4 border-indigo-100 bg-indigo-50 flex items-center justify-center overflow-hidden shadow-md relative mb-3">
             {avatarPreview ? (
@@ -550,13 +702,11 @@ function ProfileModal({ profile, setProfile, onClose, t, showToast }) {
             {t('uploadPhoto')}
           </button>
         </div>
-
         <div className="space-y-4">
           <div>
             <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">{t('fullName')}</label>
             <input type="text" value={nameInput} onChange={e => setNameInput(e.target.value)} className="w-full p-2.5 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 text-sm" />
           </div>
-
           <div>
             <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">{t('profession')}</label>
             <select value={profInput} onChange={e => setProfInput(e.target.value)} className="w-full p-2.5 border border-slate-200 rounded-xl bg-white outline-none focus:ring-2 focus:ring-indigo-500 text-sm">
@@ -569,7 +719,6 @@ function ProfileModal({ profile, setProfile, onClose, t, showToast }) {
               <option value="Yönetici">Yönetici / Manager</option>
             </select>
           </div>
-
           <div>
             <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">{t('language')}</label>
             <select value={langInput} onChange={e => setLangInput(e.target.value)} className="w-full p-2.5 border border-slate-200 rounded-xl bg-white outline-none focus:ring-2 focus:ring-indigo-500 text-sm">
@@ -577,10 +726,15 @@ function ProfileModal({ profile, setProfile, onClose, t, showToast }) {
               <option value="en">English</option>
             </select>
           </div>
-
           <button onClick={handleSave} className="w-full bg-indigo-600 text-white font-bold py-3 rounded-xl mt-4 hover:bg-indigo-700 transition-colors shadow-md">
             {t('saveProfile')}
           </button>
+          
+          <div className="border-t border-slate-100 pt-4 mt-4">
+             <button onClick={onLogout} className="w-full flex justify-center items-center text-red-600 bg-red-50 font-bold py-3 rounded-xl hover:bg-red-100 transition-colors">
+               <LogOut size={18} className="mr-2" /> {t('logout')}
+             </button>
+          </div>
         </div>
       </div>
     </div>
@@ -591,7 +745,7 @@ function Dashboard({ projects, onOpenProject, t }) {
   const activeProjects = projects.filter(p => p.status === 'Devam Ediyor' || p.status === 'In Progress');
   const completedProjects = projects.filter(p => p.status === 'Tamamlandı' || p.status === 'Completed');
   const totalNotes = projects.reduce((acc, p) => acc + (p.notes?.length || 0), 0);
-
+  
   return (
     <div className="p-6 space-y-6 animate-in fade-in duration-300">
       <div className="grid grid-cols-2 gap-4">
@@ -610,7 +764,6 @@ function Dashboard({ projects, onOpenProject, t }) {
           <p className="text-3xl font-bold text-slate-800">{totalNotes}</p>
         </div>
       </div>
-
       <div>
         <h2 className="text-lg font-bold text-slate-800 mb-4">{t('recentProjects')}</h2>
         <div className="space-y-3">
@@ -630,7 +783,6 @@ function Dashboard({ projects, onOpenProject, t }) {
           )}
         </div>
       </div>
-
       <div>
         <h2 className="text-lg font-bold text-slate-800 mb-4">{t('completedProjects')}</h2>
         <div className="space-y-3">
@@ -658,12 +810,12 @@ function ProjectList({ projects, setProjects, onOpenProject, t }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
   const [newProject, setNewProject] = useState({ title: '', client: '' });
-
+  
   const filteredProjects = projects.filter(p => 
     p.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
     p.client.toLowerCase().includes(searchTerm.toLowerCase())
   );
-
+  
   const handleAddProject = (e) => {
     e.preventDefault();
     if (!newProject.title) return;
@@ -684,7 +836,7 @@ function ProjectList({ projects, setProjects, onOpenProject, t }) {
     setNewProject({ title: '', client: '' });
     setShowAddModal(false);
   };
-
+  
   return (
     <div className="p-6 h-full flex flex-col relative">
       <div className="relative mb-6">
@@ -697,7 +849,6 @@ function ProjectList({ projects, setProjects, onOpenProject, t }) {
           onChange={(e) => setSearchTerm(e.target.value)}
         />
       </div>
-
       <div className="space-y-3 flex-1 overflow-y-auto pb-6">
         {filteredProjects.map(project => {
           const isCompleted = project.status === 'Tamamlandı' || project.status === 'Completed';
@@ -720,15 +871,14 @@ function ProjectList({ projects, setProjects, onOpenProject, t }) {
           );
         })}
       </div>
-
-      {/* FAB (Ekleme Butonu) daha güvenli bir lokasyona (bottom-8) alındı */}
+      
       <button 
         onClick={() => setShowAddModal(true)}
         className="absolute bottom-8 right-6 w-14 h-14 bg-indigo-600 text-white rounded-full flex items-center justify-center shadow-lg hover:bg-indigo-700 transition-colors z-30"
       >
         <Plus size={28} />
       </button>
-
+      
       {showAddModal && (
         <div className="absolute inset-0 bg-slate-900/40 z-40 flex items-end sm:items-center justify-center animate-in fade-in">
           <div className="bg-white w-full sm:w-11/12 rounded-t-3xl sm:rounded-3xl p-6 shadow-2xl animate-in slide-in-from-bottom-10">
@@ -759,15 +909,14 @@ function ProjectList({ projects, setProjects, onOpenProject, t }) {
 function ProjectDetail({ project, onBack, updateProject, t, profile, showToast }) {
   const [activeTab, setActiveTab] = useState('notes');
   const isReadOnly = project.status === 'Tamamlandı' || project.status === 'Completed';
-
+  
   const toggleProjectStatus = () => {
     const newStatus = isReadOnly ? 'Devam Ediyor' : 'Tamamlandı';
     updateProject({...project, status: newStatus});
   };
-
+  
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col animate-in slide-in-from-right-8 duration-300">
-      
       <header className="bg-indigo-600 text-white px-4 py-4 pt-6 sticky top-0 z-20 shadow-md">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center space-x-3 flex-1 overflow-hidden pr-2">
@@ -781,15 +930,12 @@ function ProjectDetail({ project, onBack, updateProject, t, profile, showToast }
           </div>
           
           <div className="flex items-center space-x-3 flex-shrink-0">
-            {/* Projeyi Bitir / Aktife Al Butonu */}
             <button 
               onClick={toggleProjectStatus}
               className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors shadow-sm flex items-center ${isReadOnly ? 'bg-amber-400 text-amber-900 hover:bg-amber-300' : 'bg-green-500 text-white hover:bg-green-400'}`}
             >
               {isReadOnly ? t('makeActive') : <><CheckCircle2 size={14} className="mr-1"/> {t('finishProject')}</>}
             </button>
-
-            {/* Header Profil Avatarı */}
             <div className="w-9 h-9 rounded-full border border-white/20 overflow-hidden bg-white/10 flex items-center justify-center">
               {profile.avatar ? (
                 <img src={profile.avatar} alt="Profile" className="w-full h-full object-cover" />
@@ -809,17 +955,14 @@ function ProjectDetail({ project, onBack, updateProject, t, profile, showToast }
           <DetailTab label={t('team')} icon={<Users size={16}/>} isActive={activeTab === 'team'} onClick={() => setActiveTab('team')} />
         </div>
       </header>
-
       <div className="flex-1 p-4">
-        {/* Arşiv Modu Uyarısı */}
         {isReadOnly && (
           <div className="bg-amber-50 text-amber-800 p-3 rounded-xl mb-4 text-xs font-medium flex items-center border border-amber-200 shadow-sm animate-in fade-in">
             <Archive size={16} className="mr-2 flex-shrink-0" />
             {t('readOnlyMsg')}
           </div>
         )}
-
-        {activeTab === 'notes' && <ProjectNotes project={project} updateProject={updateProject} t={t} isReadOnly={isReadOnly} showToast={showToast} />}
+        {activeTab === 'notes' && <ProjectNotes project={project} updateProject={updateProject} t={t} isReadOnly={isReadOnly} showToast={showToast} profile={profile} />}
         {activeTab === 'tasks' && <ProjectCalendar project={project} updateProject={updateProject} t={t} isReadOnly={isReadOnly} />}
         {activeTab === 'materials' && <ProjectMaterials project={project} updateProject={updateProject} t={t} isReadOnly={isReadOnly} />}
         {activeTab === 'team' && <ProjectTeam project={project} updateProject={updateProject} t={t} isReadOnly={isReadOnly} />}
@@ -842,7 +985,7 @@ function DetailTab({ label, icon, isActive, onClick }) {
   );
 }
 
-function ProjectNotes({ project, updateProject, t, isReadOnly, showToast }) {
+function ProjectNotes({ project, updateProject, t, isReadOnly, showToast, profile }) {
   const [newNote, setNewNote] = useState('');
   const [imagePreview, setImagePreview] = useState(null);
   const [filePreview, setFilePreview] = useState(null);
@@ -853,7 +996,7 @@ function ProjectNotes({ project, updateProject, t, isReadOnly, showToast }) {
   const [editText, setEditText] = useState('');
   const [editLink, setEditLink] = useState('');
   const [editImage, setEditImage] = useState(null);
-
+  
   const fileInputRef = useRef(null);
   const docInputRef = useRef(null);
   const editFileInputRef = useRef(null);
@@ -873,11 +1016,11 @@ function ProjectNotes({ project, updateProject, t, isReadOnly, showToast }) {
       reader.readAsDataURL(file);
     }
   };
-
+  
   const handleDocChange = (e) => {
     const file = e.target.files[0];
     if (file) {
-      if (file.size > 500 * 1024) { // Localstorage dolmaması için 500KB kısıtlaması (Demo amaçlı)
+      if (file.size > 500 * 1024) { 
         showToast(t('fileLimit'));
         return;
       }
@@ -892,7 +1035,7 @@ function ProjectNotes({ project, updateProject, t, isReadOnly, showToast }) {
       reader.readAsDataURL(file);
     }
   };
-
+  
   const addNote = () => {
     if (!newNote.trim() && !imagePreview && !linkInput.trim() && !filePreview) return;
     
@@ -905,7 +1048,8 @@ function ProjectNotes({ project, updateProject, t, isReadOnly, showToast }) {
           image: imagePreview,
           file: filePreview,
           link: linkInput.trim() || null,
-          date: new Date().toLocaleDateString('tr-TR') 
+          date: new Date().toLocaleDateString('tr-TR'),
+          authorName: profile.fullName // Yazar bilgisi eklendi
         }, 
         ...(project.notes || [])
       ]
@@ -918,12 +1062,12 @@ function ProjectNotes({ project, updateProject, t, isReadOnly, showToast }) {
     setLinkInput('');
     setShowLinkField(false);
   };
-
+  
   const deleteNote = (id) => {
     const updated = { ...project, notes: project.notes.filter(n => n.id !== id) };
     updateProject(updated);
   };
-
+  
   const startEdit = (note) => {
     if(isReadOnly) return;
     setEditingId(note.id);
@@ -931,7 +1075,7 @@ function ProjectNotes({ project, updateProject, t, isReadOnly, showToast }) {
     setEditLink(note.link || '');
     setEditImage(note.image || null);
   };
-
+  
   const saveEdit = (id) => {
     const updatedNotes = project.notes.map(n => {
       if (n.id === id) {
@@ -945,7 +1089,6 @@ function ProjectNotes({ project, updateProject, t, isReadOnly, showToast }) {
 
   return (
     <div className="space-y-4">
-      {/* Yeni Not Formu - Sadece Aktif Projelerde Gösterilir */}
       {!isReadOnly && (
         <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-200">
           <textarea 
@@ -971,7 +1114,6 @@ function ProjectNotes({ project, updateProject, t, isReadOnly, showToast }) {
               </div>
             )}
           </div>
-
           {showLinkField && (
             <div className="mt-2 flex items-center bg-slate-50 p-2 rounded-lg border border-slate-200">
               <LinkIcon size={16} className="text-slate-400 mr-2" />
@@ -979,7 +1121,6 @@ function ProjectNotes({ project, updateProject, t, isReadOnly, showToast }) {
               <button onClick={() => {setShowLinkField(false); setLinkInput('');}} className="text-slate-400 hover:text-red-500 ml-2"><X size={16}/></button>
             </div>
           )}
-
           <div className="flex justify-between items-center mt-2 border-t border-slate-100 pt-3">
             <div className="flex space-x-1">
               <input type="file" accept="image/*" className="hidden" ref={fileInputRef} onChange={(e) => handleImageChange(e, false)} />
@@ -1000,12 +1141,16 @@ function ProjectNotes({ project, updateProject, t, isReadOnly, showToast }) {
         </div>
       )}
 
-      {/* Kaydedilmiş Notlar Listesi */}
       <div className="space-y-3">
         {project.notes?.map(note => (
           <div key={note.id} className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex flex-col group relative overflow-hidden">
             <div className="flex justify-between items-start mb-2">
-              <span className="text-[10px] text-slate-400 font-medium">{note.date}</span>
+              <div className="flex flex-col">
+                 <span className="text-[10px] text-slate-400 font-medium">{note.date}</span>
+                 {/* Yazar Bilgisi Burada Gösterilir */}
+                 {note.authorName && <span className="text-[11px] font-bold text-indigo-500 mt-0.5">{t('authorPrefix')} {note.authorName}</span>}
+              </div>
+              
               {!isReadOnly && (
                 <div className="flex space-x-1">
                   <button onClick={() => startEdit(note)} className="p-1 text-slate-300 hover:text-indigo-600"><Edit2 size={14}/></button>
@@ -1013,7 +1158,7 @@ function ProjectNotes({ project, updateProject, t, isReadOnly, showToast }) {
                 </div>
               )}
             </div>
-
+            
             {editingId === note.id ? (
               <div className="space-y-3">
                 <textarea className="w-full p-2 border border-slate-200 rounded-xl text-sm" value={editText} onChange={e => setEditText(e.target.value)} />
@@ -1040,10 +1185,8 @@ function ProjectNotes({ project, updateProject, t, isReadOnly, showToast }) {
                     <img src={note.image} alt="Not Görseli" className="max-w-full h-auto rounded-lg border border-slate-200 max-h-48 object-cover" />
                   </div>
                 )}
-
                 {note.text && <p className="text-slate-700 text-sm whitespace-pre-wrap leading-relaxed mb-2">{note.text}</p>}
-
-                {/* Yüklenen Dosyanın Görünümü */}
+                
                 {note.file && (
                   <a href={note.file.data} download={note.file.name} className="mt-2 flex items-center justify-between bg-slate-50 p-3 rounded-xl border border-slate-200 hover:bg-slate-100 transition-colors group">
                     <div className="flex items-center overflow-hidden">
@@ -1058,7 +1201,6 @@ function ProjectNotes({ project, updateProject, t, isReadOnly, showToast }) {
                     <Download size={16} className="text-slate-400 group-hover:text-indigo-600 flex-shrink-0 ml-2" />
                   </a>
                 )}
-
                 {note.link && (
                   <a href={note.link} target="_blank" rel="noopener noreferrer" className="mt-2 inline-flex items-center text-indigo-600 bg-indigo-50 px-3 py-2 rounded-lg text-xs font-medium hover:bg-indigo-100 transition-colors truncate">
                     <LinkIcon size={14} className="mr-2 flex-shrink-0" />
@@ -1087,14 +1229,14 @@ function ProjectCalendar({ project, updateProject, t, isReadOnly }) {
   const [newTask, setNewTask] = useState({
     title: '', date: new Date().toISOString().split('T')[0], startTime: '09:00', endTime: '10:00', reminder: false
   });
-
+  
   const handleEditTask = (task) => {
     if(isReadOnly) return;
     setNewTask({ title: task.title, date: task.date, startTime: task.startTime, endTime: task.endTime, reminder: task.reminder });
     setEditingTaskId(task.id);
     setShowForm(true);
   };
-
+  
   const handleToggleReminder = async () => {
     if (!newTask.reminder) {
       if ('Notification' in window && Notification.permission !== 'denied') {
@@ -1105,7 +1247,7 @@ function ProjectCalendar({ project, updateProject, t, isReadOnly }) {
       setNewTask({...newTask, reminder: false});
     }
   };
-
+  
   const addTask = (e) => {
     e.preventDefault();
     if (!newTask.title.trim()) return;
@@ -1119,7 +1261,7 @@ function ProjectCalendar({ project, updateProject, t, isReadOnly }) {
     setEditingTaskId(null);
     setNewTask({ title: '', date: new Date().toISOString().split('T')[0], startTime: '09:00', endTime: '10:00', reminder: false });
   };
-
+  
   const toggleTaskStatus = (id) => {
     if(isReadOnly) return;
     updateProject({ ...project, tasks: project.tasks.map(t => t.id === id ? { ...t, isDone: !t.isDone } : t) });
@@ -1138,7 +1280,6 @@ function ProjectCalendar({ project, updateProject, t, isReadOnly }) {
           </button>
         )}
       </div>
-
       {showForm && !isReadOnly && (
         <form onSubmit={addTask} className="bg-white p-4 rounded-xl border border-indigo-100 shadow-sm space-y-4 animate-in slide-in-from-top-2">
           <div><label className="text-xs font-medium text-slate-500 mb-1 block">{t('taskTitle')}</label><input required type="text" className="w-full p-2 border border-slate-200 rounded-lg text-sm outline-none" value={newTask.title} onChange={e => setNewTask({...newTask, title: e.target.value})} /></div>
@@ -1154,7 +1295,6 @@ function ProjectCalendar({ project, updateProject, t, isReadOnly }) {
           <button type="submit" className="w-full bg-indigo-600 text-white rounded-lg py-3 text-sm font-bold shadow-sm">{editingTaskId ? t('updateTask') : t('addToCalendar')}</button>
         </form>
       )}
-
       <div className="space-y-3">
         {project.tasks?.map(task => {
           const formattedDate = new Date(task.date).toLocaleDateString('tr-TR', { day: 'numeric', month: 'short' });
@@ -1196,7 +1336,7 @@ function ProjectMaterials({ project, updateProject, t, isReadOnly }) {
   const [showAdd, setShowAdd] = useState(false);
   const [editingMatId, setEditingMatId] = useState(null);
   const [newMat, setNewMat] = useState({ type: 'Zemin', name: '', brand: '', area: '' });
-
+  
   const addMaterial = (e) => {
     e.preventDefault();
     const updatedMaterials = editingMatId 
@@ -1219,7 +1359,6 @@ function ProjectMaterials({ project, updateProject, t, isReadOnly }) {
           </button>
         )}
       </div>
-
       {showAdd && !isReadOnly && (
         <form onSubmit={addMaterial} className="bg-white p-4 rounded-xl border border-indigo-100 shadow-sm space-y-3 mb-4 animate-in fade-in">
           <select value={newMat.type} onChange={e => setNewMat({...newMat, type: e.target.value})} className="w-full p-2 border border-slate-200 rounded-lg text-sm outline-none bg-white">
@@ -1233,7 +1372,6 @@ function ProjectMaterials({ project, updateProject, t, isReadOnly }) {
           <button type="submit" className="w-full bg-slate-900 text-white rounded-lg py-2 text-sm font-bold hover:bg-slate-800">{editingMatId ? t('updateMaterial') : t('addToBoard')}</button>
         </form>
       )}
-
       <div className="grid grid-cols-1 gap-3">
         {project.materials?.map(mat => (
           <div key={mat.id} className="bg-white p-4 rounded-xl border-l-4 border-l-indigo-500 shadow-sm flex justify-between items-start">
@@ -1266,14 +1404,14 @@ function ProjectMaterials({ project, updateProject, t, isReadOnly }) {
 
 function ProjectTeam({ project, updateProject, t, isReadOnly }) {
   const [email, setEmail] = useState('');
-
+  
   const inviteUser = (e) => {
     e.preventDefault();
     if (!email.trim() || !email.includes('@')) return;
     updateProject({ ...project, collaborators: [...(project.collaborators || []), { id: Date.now(), email, role: 'İzleyici' }] });
     setEmail('');
   };
-
+  
   const changeRole = (userId, newRole) => {
     updateProject({ ...project, collaborators: project.collaborators.map(c => c.id === userId ? { ...c, role: newRole } : c) });
   };
@@ -1287,7 +1425,6 @@ function ProjectTeam({ project, updateProject, t, isReadOnly }) {
           <p className="text-xs text-indigo-700 leading-relaxed">{t('shareDesc')}</p>
         </div>
       </div>
-
       {!isReadOnly && (
         <form onSubmit={inviteUser} className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-3">
           <h4 className="text-sm font-bold text-slate-700">{t('sendInvite')}</h4>
@@ -1297,11 +1434,9 @@ function ProjectTeam({ project, updateProject, t, isReadOnly }) {
           </div>
         </form>
       )}
-
       <div>
         <h4 className="text-sm font-bold text-slate-700 mb-3">{t('accessList')}</h4>
         <div className="space-y-2">
-          {/* Proje Sahibi (Yönetici) */}
           <div className="bg-white p-3 rounded-lg border border-slate-100 flex items-center justify-between shadow-sm">
             <div className="flex items-center space-x-3">
               <div className="w-8 h-8 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold text-xs">SEN</div>
@@ -1312,7 +1447,6 @@ function ProjectTeam({ project, updateProject, t, isReadOnly }) {
             </div>
           </div>
           
-          {/* Davet Edilenler (Rol Değiştirme ile) */}
           {project.collaborators?.map(user => (
             <div key={user.id} className="bg-white p-3 rounded-lg border border-slate-100 flex items-center justify-between shadow-sm">
               <div className="flex items-center space-x-3 flex-1 overflow-hidden pr-2">
@@ -1350,16 +1484,16 @@ function Tools({ t }) {
   const [width, setWidth] = useState('');
   const [length, setLength] = useState('');
   const area = (parseFloat(width || 0) * parseFloat(length || 0)).toFixed(2);
-
+  
   const [matArea, setMatArea] = useState('');
   const [wasteOption, setWasteOption] = useState('10');
   const [customWaste, setCustomWaste] = useState('');
   const [packageSize, setPackageSize] = useState('');
-
+  
   const actualWaste = wasteOption === 'custom' ? parseFloat(customWaste || 0) : parseFloat(wasteOption || 0);
   const grossArea = parseFloat(matArea || 0) * (1 + (actualWaste / 100));
   const requiredPackages = packageSize > 0 ? Math.ceil(grossArea / parseFloat(packageSize)) : 0;
-
+  
   const [floorHeight, setFloorHeight] = useState('');
   const heightVal = parseFloat(floorHeight || 0);
   const riserCount = heightVal > 0 ? Math.round(heightVal / 17) : 0; 
@@ -1384,7 +1518,6 @@ function Tools({ t }) {
           </div>
         </div>
       </div>
-
       <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
         <h3 className="font-bold text-slate-700 mb-4 flex items-center"><Package size={18} className="mr-2 text-indigo-500"/> {t('pkgCalculator')}</h3>
         <div className="space-y-4">
@@ -1419,3 +1552,5 @@ function Tools({ t }) {
     </div>
   );
 }
+
+```
